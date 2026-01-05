@@ -3,7 +3,8 @@
 
 const Consultation = require('../models/Consultation.model');
 const { sendConsultationRequestEmail, sendStatusUpdateEmail } = require('../config/email');
-const { sendConsultationWhatsAppNotification } = require('../config/whatsapp');
+// WhatsApp temporarily disabled - uncomment when ready
+// const { sendConsultationWhatsAppNotification } = require('../config/whatsapp');
 
 /**
  * @desc    Create new consultation request
@@ -37,10 +38,11 @@ exports.createConsultation = async (req, res, next) => {
       console.error('Email notification failed:', err.message);
     });
 
-    // Send WhatsApp notification (don't wait)
-    sendConsultationWhatsAppNotification(consultation).catch(err => {
-      console.error('WhatsApp notification failed:', err.message);
-    });
+    // WhatsApp notification - DISABLED FOR NOW
+    // Uncomment when Twilio is configured
+    // sendConsultationWhatsAppNotification(consultation).catch(err => {
+    //   console.error('WhatsApp notification failed:', err.message);
+    // });
 
     res.status(201).json({
       success: true,
