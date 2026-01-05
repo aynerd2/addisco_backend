@@ -37,11 +37,34 @@ app.use(helmet());
 // Compression middleware
 app.use(compression());
 
-// CORS configuration
+// CORS configuration - Support multiple origins
+// Parse allowed origins from environment variable
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+  : ['http://localhost:3000'];
+
+console.log('🔒 CORS Configuration:');
+console.log('   Allowed Origins:', allowedOrigins);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      // Return only the matching origin (not all origins!)
+      callback(null, true);
+    } else {
+      console.log(`❌ CORS blocked origin: ${origin}`);
+      console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 200
 }));
@@ -211,6 +234,3 @@ process.on('unhandledRejection', (error) => {
 
 // Export for testing
 module.exports = app;
-
-
-// TWILLO ==> HB5SPHJ58H2KUGAGV5HKNY9Y
