@@ -7,13 +7,25 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false, // true for 465, false for other ports
+  secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
   },
   tls: {
     rejectUnauthorized: false
+  }
+});
+
+// Verify transporter on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.log('❌ Email configuration error:', error.message);
+  } else {
+    console.log('✅ Email server ready');
+    if (process.env.SMTP_FROM_EMAIL) {
+      console.log(`   Sending from: ${process.env.SMTP_FROM_EMAIL}`);
+    }
   }
 });
 
@@ -36,11 +48,15 @@ const sendEmail = async ({ to, subject, html, text }) => {
 
   try {
     const mailOptions = {
-      from: `"Addisco & Company" <${process.env.SMTP_USER}>`,
+      from: {
+        name: process.env.SMTP_FROM_NAME || 'Addisco & Company',
+        address: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER
+      },
       to,
       subject,
       html,
-      text: text || html.replace(/<[^>]*>/g, '') // Strip HTML for text version
+      text: text || html.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+      replyTo: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -248,9 +264,9 @@ const sendConsultationRequestEmail = async (consultation) => {
   `;
 
   // Send both emails in parallel
-  await Promise.all([
+  const results = await Promise.allSettled([
     sendEmail({
-      to: process.env.ADMIN_EMAIL || 'admin@addisco.com',
+      to: process.env.ADMIN_EMAIL || 'info@addisco.com',
       subject: `New Consultation Request - ${consultation.service}`,
       html: emailTemplate(adminContent)
     }),
@@ -260,6 +276,18 @@ const sendConsultationRequestEmail = async (consultation) => {
       html: emailTemplate(clientContent)
     })
   ]);
+
+  // Log results
+  results.forEach((result, index) => {
+    const emailType = index === 0 ? 'Admin' : 'Client';
+    if (result.status === 'fulfilled' && result.value.success) {
+      console.log(`✅ ${emailType} email sent successfully`);
+    } else {
+      console.error(`❌ ${emailType} email failed:`, result.reason || result.value?.error);
+    }
+  });
+
+  return results;
 };
 
 /**
@@ -294,7 +322,7 @@ const sendStatusUpdateEmail = async (consultation) => {
     <p style="margin-top: 30px;">Best regards,<br><strong>The Addisco Team</strong></p>
   `;
 
-  await sendEmail({
+  return await sendEmail({
     to: consultation.email,
     subject: `Consultation Update - ${consultation.status.replace('-', ' ')}`,
     html: emailTemplate(content)

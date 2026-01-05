@@ -98,8 +98,8 @@ app.get('/', (req, res) => {
       statistics: '/api/stats'
     },
     contact: {
-      email: 'hello@addisco.com',
-      website: 'https://addisco.com'
+      email: 'info@addisco.ng',
+      website: 'https://addisco.ng'
     }
   });
 });
